@@ -2,6 +2,7 @@
 """Checks the sourcing rules in STATE_BENEFITS.md.
 
 Usage:  python3 check_state_benefits.py [path/to/STATE_BENEFITS.md]
+With no argument it checks STATE_BENEFITS.md in the same folder as this script.
 
 The script exits with a non-zero code and lists the offending rows if:
   * a table row does not have exactly 8 cells;
@@ -28,11 +29,13 @@ domain or any subdomain of it):
 A section is a "## " heading. Rows are counted under the most recent heading.
 """
 import datetime
+import os
 import re
 import sys
 from urllib.parse import urlparse
 
-PATH = sys.argv[1] if len(sys.argv) > 1 else "/home/box/transition/STATE_BENEFITS.md"
+HERE = os.path.dirname(os.path.abspath(__file__))
+PATH = sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, "STATE_BENEFITS.md")
 
 # Official state government .gov domains. Add a state's main domain(s) here
 # when you add that state to STATE_BENEFITS.md.
