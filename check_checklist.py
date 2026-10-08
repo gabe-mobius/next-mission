@@ -59,6 +59,8 @@ PERK_PROVIDER_DOMAINS = [
     "hireheroesusa.org",     # Hire Heroes USA
     "hiringourheroes.org",   # Hiring Our Heroes
     "grow.google",           # Google (Grow with Google)
+    "openai.com",            # OpenAI (ChatGPT Plus for service members and veterans; includes help.openai.com)
+    "chatgpt.com",           # OpenAI (chatgpt.com/veterans-claim offer page)
 ]
 PERKS_HEADING = "free and discounted perks"
 VALID_STATUS = {"sourced", "UNVERIFIED"}
