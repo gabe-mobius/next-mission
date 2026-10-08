@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """Checks sourcing and tagging rules in MASTER_CHECKLIST.md.
 
+Usage:  python3 check_checklist.py [path/to/MASTER_CHECKLIST.md]
+With no argument it checks MASTER_CHECKLIST.md in the same folder as this script.
+
 Fails (exit code 1) and lists the offending rows if:
   * a row's Status is not exactly `sourced` or `UNVERIFIED`;
   * a `sourced` row has an empty Source URL, any URL that is not allowed for
@@ -14,6 +17,11 @@ Fails (exit code 1) and lists the offending rows if:
       Due:        `none`, a whole number of days (e.g. -365, 0, +180), or a
                   window `A..B` with A <= B (e.g. -180..-90)
   * a `sourced` row in the perks section has an empty 'Who qualifies' cell;
+  * the perks table lacks the 'Who qualifies' or 'Window' column, or a perk row
+    has an invalid Window. Window is `any`, or `A..B` where A and B are whole
+    numbers of days relative to the separation date (multiples of 365 mean
+    calendar years) and either side may be `any` (e.g. -365..+365, -180..0,
+    any..+365), with A <= B and not `any..any`;
   * a row whose Topic mentions move, HHG, household goods, travel, or storage
     is UNVERIFIED and its Item text lacks the exact sentence
     'Confirm this with your installation transportation office.';
@@ -41,10 +49,11 @@ Source URL rules (a cell may hold several URLs, e.g. "(1) https://a ; (2) https:
     page (never a blog, coupon or news site).
 Prints counts for the main checklist and the perks section, and per 'Applies to'.
 """
-import re, sys, datetime
+import os, re, sys, datetime
 from urllib.parse import urlparse
 
-PATH = sys.argv[1] if len(sys.argv) > 1 else "/home/box/transition/MASTER_CHECKLIST.md"
+HERE = os.path.dirname(os.path.abspath(__file__))
+PATH = sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, "MASTER_CHECKLIST.md")
 CORE_DOMAINS = ["va.gov", "benefits.va.gov", "dodtap.mil", "skillbridge.osd.mil", "tricare.mil",
                 "tsp.gov", "militaryonesource.mil", "move.mil", "travel.dod.mil"]
 ALLOWED_EXACT_URLS = {"https://media.defense.gov/2022/jan/04/2002917147/-1/-1/0/jtr.pdf"}
@@ -68,11 +77,13 @@ VALID_APPLIES = {"retiring", "separating", "both"}
 VALID_BRANCHES = {"army", "navy", "marine-corps", "air-force", "space-force", "coast-guard"}
 LOG_SECTION = "value changes"
 LOG_COLS = ["Date", "Row ID", "Field", "Old value", "New value", "Source URL", "Note"]
-LOG_FIELDS = {"Rule / deadline / number", "Due", "Applies to", "Branch", "Status"}
+LOG_FIELDS = {"Rule / deadline / number", "Due", "Applies to", "Branch", "Status", "Window"}
 ID_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 MAIN_REQUIRED_COLS = ["#", "ID", "Item", "Topic", "Applies to", "Branch", "Due", "Rule / deadline / number",
                       "Source URL", "Source quote or value", "Date checked", "Status"]
 DUE_RE = re.compile(r"^(none|[+-]?\d+|[+-]?\d+\.\.[+-]?\d+)$")
+PERKS_REQUIRED_COLS = ["Who qualifies", "Window"]
+WINDOW_RE = re.compile(r"^(any|(any|[+-]?\d+)\.\.(any|[+-]?\d+))$")
 MOVE_TOPIC_RE = re.compile(r"\bmov(e|es|ed|ing)\b|\bhhg\b|household goods|\btravel|\bstorage\b", re.I)
 TRANSPORT_SENTENCE = "Confirm this with your installation transportation office."
 URL_RE = re.compile(r"https?://[^\s;|]+")
@@ -111,6 +122,15 @@ def check_due(due):
     if ".." in due:
         a, b = (int(x) for x in due.split(".."))
         return a <= b
+    return True
+
+def check_window(w):
+    if not WINDOW_RE.match(w) or w == "any..any":
+        return False
+    if ".." in w:
+        a, b = w.split("..")
+        if a != "any" and b != "any":
+            return int(a) <= int(b)
     return True
 
 def norm(v):
@@ -186,10 +206,10 @@ def main():
                 errors.append(f"line {n} [{section}]: table header missing required 'ID' column")
             if "Status" not in header or "#" not in header:
                 errors.append(f"line {n}: table header missing '#' or 'Status' column: {header}")
-            if not perks:
-                missing = [c for c in MAIN_REQUIRED_COLS if c not in header]
-                if missing:
-                    errors.append(f"line {n} [{section}]: table header missing required column(s): {missing}")
+            required = PERKS_REQUIRED_COLS if perks else MAIN_REQUIRED_COLS
+            missing = [c for c in required if c not in header]
+            if missing:
+                errors.append(f"line {n} [{section}]: table header missing required column(s): {missing}")
             continue
         if all(re.fullmatch(r":?-{3,}:?", c) for c in cells):
             continue  # separator row
@@ -232,6 +252,8 @@ def main():
                     branch_specific = True
             if not check_due(row.get("Due", "")):
                 errors.append(f"{rid}: invalid Due '{row.get('Due', '')}' (use none, -365, +180, 0, or A..B)")
+        elif not check_window(row.get("Window", "")):
+            errors.append(f"{rid}: invalid Window '{row.get('Window', '')}' (use any, -365..+365, -180..0, or any..+365)")
 
         if status not in VALID_STATUS:
             errors.append(f"{rid}: Status must be exactly 'sourced' or 'UNVERIFIED' (got '{status}')")

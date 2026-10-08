@@ -5,6 +5,7 @@ Usage:
   python3 deadlines.py                 # items due soon + late items you can still act on
   python3 deadlines.py --days 60       # look 60 days ahead instead of the profile's lookahead_days
   python3 deadlines.py --plan          # your full filtered checklist, grouped by time bucket
+  python3 deadlines.py --perks         # free perks you can claim now or soon, plus any-time perks
   python3 deadlines.py --profile test_profiles/navy_separatee.json --today 2026-10-08
 
 The profile is read from profile.json next to this script unless --profile is given.
@@ -12,7 +13,14 @@ Copy profile.example.json to profile.json and fill it in. Rows are kept when:
   * 'Applies to' is `both` or matches retiring_or_separating, and
   * 'Branch' is `all` or lists your branch, and
   * GI Bill transfer and Survivor Benefit Plan rows only when you have a spouse or children.
-'Due' is days relative to separation_date (e.g. -365, +120, -180..-90, none).
+'Due' is relative to separation_date (e.g. -365, +120, -180..-90, none). An offset that
+is a whole multiple of 365 is read as calendar years (-1460 from 2027-12-08 is 2023-12-08);
+any other offset is counted in days.
+Perks come from the perks section. Each perk row has a 'Window' cell (any, -365..+365,
+any..+365, ...) counted the same way from separation_date. Perks have no branch or
+retiring/separating tags, so they are filtered by window only; pick the ones that fit the
+person's plans. The default run adds a short section for perks whose window opens (or
+closes) within the look-ahead; --perks lists everything you can claim now or soon.
 This is a planning aid, not legal advice; check each row's source.
 """
 import argparse, datetime, json, os, re, sys, textwrap
@@ -24,6 +32,14 @@ CADENCES = ["daily", "weekly", "biweekly", "monthly"]
 DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
 FAMILY_TOPICS = ("GI Bill transfer (TEB)", "Retirement (SBP)")
 PERKS_HEADING = "free and discounted perks"
+# Extra plain-English notes printed under specific rows, keyed by row ID.
+NOTES = {
+    "4y-gi-bill-transfer": (
+        "Time-sensitive decision, not an automatic to-do: transferring requires agreeing to 4 more "
+        "years of service (an added service obligation), requested in milConnect while on active duty. "
+        "If your date is less than 4 years away, transferring means serving past it. Whether that is "
+        "worth it is your decision; talk it over with your career counselor or personnel office."),
+}
 
 
 def die(msg, code=1):
@@ -87,6 +103,17 @@ def load_profile(path):
     return p
 
 
+def offset_date(base, days):
+    """base + days, but whole multiples of 365 are calendar years (Feb 29 -> Feb 28)."""
+    if days and days % 365 == 0:
+        y = base.year + days // 365
+        try:
+            return base.replace(year=y)
+        except ValueError:
+            return base.replace(year=y, day=28)
+    return base + datetime.timedelta(days=days)
+
+
 def parse_due(due):
     due = due.strip()
     if due == "none":
@@ -95,6 +122,82 @@ def parse_due(due):
         a, b = due.split("..")
         return int(a), int(b)
     return int(due), int(due)
+
+
+def parse_window(w):
+    """'any' -> (None, None); 'A..B' with either side 'any' -> (int|None, int|None)."""
+    w = (w or "any").strip()
+    if w == "any":
+        return None, None
+    a, b = w.split("..")
+    return (None if a == "any" else int(a)), (None if b == "any" else int(b))
+
+
+def load_perks(path):
+    perks, section, header = [], "", None
+    for line in open(path, encoding="utf-8").read().splitlines():
+        if line.startswith("#"):
+            section, header = line.lstrip("#").strip(), None
+            continue
+        if not line.strip().startswith("|"):
+            header = None
+            continue
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        if header is None:
+            header = cells
+            continue
+        if PERKS_HEADING not in section.lower() or len(cells) != len(header):
+            continue
+        if all(re.fullmatch(r":?-{3,}:?", c) for c in cells):
+            continue
+        r = dict(zip(header, cells))
+        try:
+            r["window"] = parse_window(r.get("Window", "any"))
+        except ValueError:
+            r["window"] = (None, None)
+        perks.append(r)
+    return perks
+
+
+def perk_dates(r, sep):
+    a, b = r["window"]
+    return (None if a is None else offset_date(sep, a)), (None if b is None else offset_date(sep, b))
+
+
+def show_perk(r, sep, extra=""):
+    da, db = perk_dates(r, sep)
+    if da is None and db is None:
+        when = "any time"
+    elif da is None:
+        when = f"until {db.isoformat()}"
+    elif db is None:
+        when = f"from {da.isoformat()}"
+    else:
+        when = f"{da.isoformat()} to {db.isoformat()}"
+    flag = "  [UNVERIFIED: confirm before relying on it]" if r.get("Status") == "UNVERIFIED" else ""
+    print(f"- {when}{extra}  [{r['ID']}] {r.get('Topic', '')}{flag}")
+    print(textwrap.fill(first_sentence(r["Item"]), width=100, initial_indent="    ", subsequent_indent="    "))
+    print(textwrap.fill("Who qualifies: " + r.get("Who qualifies", ""), width=100, initial_indent="    ", subsequent_indent="      "))
+    for u in urls(r) or ["(no official source confirmed)"]:
+        print(f"    Source: {u}")
+
+
+def classify_perks(perks, sep, today, end):
+    """Returns (open_dated, opening, anytime, closed) lists of (sort_date, extra_text, row)."""
+    open_dated, opening, anytime, closed = [], [], [], 0
+    for r in perks:
+        da, db = perk_dates(r, sep)
+        if da is None and db is None:
+            anytime.append((today, "", r))
+        elif db is not None and db < today:
+            closed += 1
+        elif da is not None and da > today:
+            if da <= end:
+                opening.append((da, f" (opens in {(da - today).days} days)", r))
+        else:
+            extra = f" (open now; closes in {(db - today).days} days)" if db is not None else " (open now)"
+            open_dated.append((db or end, extra, r))
+    return open_dated, opening, anytime, closed
 
 
 def load_rows(path):
@@ -182,7 +285,7 @@ def next_reminder(p, now):
 
 def fmt_window(row, sep):
     a, b = row["window"]
-    da, db = sep + datetime.timedelta(days=a), sep + datetime.timedelta(days=b)
+    da, db = offset_date(sep, a), offset_date(sep, b)
     return (f"{da.isoformat()}" if a == b else f"{da.isoformat()} to {db.isoformat()}"), da, db
 
 
@@ -192,6 +295,8 @@ def show(row, sep, today, extra=""):
     print(f"- {when}{extra}  [{row['ID']}] {row['Topic']}{flag}")
     print(textwrap.fill(first_sentence(row["Item"]), width=100, initial_indent="    ", subsequent_indent="    "))
     print(textwrap.fill("Rule: " + row["Rule / deadline / number"], width=100, initial_indent="    ", subsequent_indent="      "))
+    if row["ID"] in NOTES:
+        print(textwrap.fill("Note: " + NOTES[row["ID"]], width=100, initial_indent="    ", subsequent_indent="      "))
     for u in urls(row) or ["(no official source confirmed)"]:
         print(f"    Source: {u}")
 
@@ -203,6 +308,7 @@ def main():
     ap.add_argument("--days", type=int, default=None, help="look-ahead window in days (default: profile lookahead_days, else 30)")
     ap.add_argument("--today", default=None, help="pretend today is YYYY-MM-DD (for testing)")
     ap.add_argument("--plan", action="store_true", help="print the full filtered checklist grouped by bucket")
+    ap.add_argument("--perks", action="store_true", help="list perks you can claim now or within the look-ahead, plus any-time perks")
     a = ap.parse_args()
 
     p = load_profile(a.profile)
@@ -230,19 +336,55 @@ def main():
           f"next reminder {nr.strftime('%Y-%m-%d %H:%M %Z')}. Look-ahead: {days} days.")
     print("This is a planning aid, not legal advice. Confirm each item with the linked source and your offices.\n")
 
+    end = today + datetime.timedelta(days=days)
+    if a.perks:
+        perks = load_perks(a.checklist)
+        open_dated, opening, anytime, closed = classify_perks(perks, sep, today, end)
+        print("Free and discounted perks (no branch or status filter; pick the ones that fit your plans).")
+        print("Read each provider's full terms before you sign up.\n")
+        print("1) Claim window open now:")
+        if not open_dated:
+            print("   None.")
+        for _, extra, r in sorted(open_dated, key=lambda x: x[0]):
+            show_perk(r, sep, extra)
+        print()
+        print(f"2) Claim window opens in the next {days} days:")
+        if not opening:
+            print("   None.")
+        for _, extra, r in sorted(opening, key=lambda x: x[0]):
+            show_perk(r, sep, extra)
+        print()
+        print("3) No time limit stated (available any time you qualify):")
+        if not anytime:
+            print("   None.")
+        for _, extra, r in anytime:
+            show_perk(r, sep, extra)
+        print()
+        later = sorted((perk_dates(r, sep)[0], r["ID"]) for r in perks
+                       if perk_dates(r, sep)[0] is not None and perk_dates(r, sep)[0] > end)
+        if later:
+            print("Opening later: " + "; ".join(f"[{i}] from {d.isoformat()}" for d, i in later) + ".")
+        print(f"{closed} perk window(s) have already closed.")
+        return
+
     if a.plan:
         buckets = []
         for r in rows:
             if r["bucket"] not in buckets:
                 buckets.append(r["bucket"])
+        far = datetime.date.max
         for b in buckets:
             print(f"== {b} ==")
-            for r in [r for r in rows if r["bucket"] == b]:
+            in_b = [r for r in rows if r["bucket"] == b]
+            in_b.sort(key=lambda r: (far, far) if r["window"] is None else fmt_window(r, sep)[1:])
+            for r in in_b:
                 if r["window"] is None:
                     flag = "  [UNVERIFIED]" if r["Status"] == "UNVERIFIED" else ""
                     print(f"- no fixed date  [{r['ID']}] {r['Topic']}{flag}")
                     print(textwrap.fill(first_sentence(r["Item"]), width=100, initial_indent="    ", subsequent_indent="    "))
                     print(textwrap.fill("Rule: " + r["Rule / deadline / number"], width=100, initial_indent="    ", subsequent_indent="      "))
+                    if r["ID"] in NOTES:
+                        print(textwrap.fill("Note: " + NOTES[r["ID"]], width=100, initial_indent="    ", subsequent_indent="      "))
                     for u in urls(r) or ["(no official source confirmed)"]:
                         print(f"    Source: {u}")
                 else:
@@ -250,7 +392,6 @@ def main():
             print()
         return
 
-    end = today + datetime.timedelta(days=days)
     due, late, closed, undated = [], [], 0, 0
     for r in rows:
         if r["window"] is None:
@@ -272,14 +413,14 @@ def main():
     for da, r in sorted(due, key=lambda x: x[0]):
         _, da, db = fmt_window(r, sep)
         if da == db:
-            extra = f" (in {(da - today).days} days)" if da >= today else ""
+            extra = (" (today)" if da == today else f" (in {(da - today).days} days)") if da >= today else ""
         elif da > today:
             extra = f" (opens in {(da - today).days} days)"
         else:
             extra = f" (open now; closes in {(db - today).days} days)"
         show(r, sep, today, extra)
     print()
-    print("2) Past due but still actionable before your separation date (if not already done, act now;\n   some items may need a waiver, a late request, or extra service, so read the row):")
+    print("2) Past the recommended date but still possible before your separation date (if not already done,\n   look at these soon; some need a waiver, a late request, or extra service, so read each row):")
     if not late:
         print("   None.")
     for db, r in sorted(late, key=lambda x: x[0]):
@@ -287,6 +428,13 @@ def main():
     print()
     print(f"{undated} rows have no fixed date and {closed} rows with dates have already closed. "
           f"Run with --plan to see your full list.")
+    open_dated, opening, _, _ = classify_perks(load_perks(a.checklist), sep, today, end)
+    closing = [x for x in open_dated if x[2]["window"][1] is not None and x[0] <= end]
+    if opening or closing:
+        print()
+        print(f"3) Perks whose claim window opens or closes in the next {days} days (run with --perks for all perks):")
+        for _, extra, r in sorted(opening + closing, key=lambda x: x[0]):
+            show_perk(r, sep, extra)
 
 
 if __name__ == "__main__":
