@@ -1,0 +1,17 @@
+{
+  "name": "Test Navy Separatee (fake)",
+  "branch": "navy",
+  "retiring_or_separating": "separating",
+  "separation_date": "2027-01-15",
+  "spouse": false,
+  "children": 0,
+  "plans_after": "school",
+  "state_planned": "VA",
+  "unit": "",
+  "saved_on": "2026-10-08",
+  "reminder_cadence": "biweekly",
+  "reminder_day": "Friday",
+  "reminder_time": "18:30",
+  "timezone": "America/New_York",
+  "lookahead_days": 45
+}

@@ -1,0 +1,17 @@
+{
+  "name": "Test Air Force Retiree (fake)",
+  "branch": "air-force",
+  "retiring_or_separating": "retiring",
+  "separation_date": "2027-09-30",
+  "spouse": true,
+  "children": 0,
+  "plans_after": "business",
+  "state_planned": "CO",
+  "unit": "",
+  "saved_on": "2026-10-08",
+  "reminder_cadence": "monthly",
+  "reminder_day": "Tuesday",
+  "reminder_time": "07:15",
+  "timezone": "America/Denver",
+  "lookahead_days": 30
+}

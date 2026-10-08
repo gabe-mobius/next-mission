@@ -1,0 +1,17 @@
+{
+  "name": "Test Army Retiree (fake)",
+  "branch": "army",
+  "retiring_or_separating": "retiring",
+  "separation_date": "2027-03-31",
+  "spouse": true,
+  "children": 2,
+  "plans_after": "work",
+  "state_planned": "TX",
+  "unit": "Fort Example (fake)",
+  "saved_on": "2026-10-08",
+  "reminder_cadence": "weekly",
+  "reminder_day": "Monday",
+  "reminder_time": "08:00",
+  "timezone": "America/Chicago",
+  "lookahead_days": 30
+}
