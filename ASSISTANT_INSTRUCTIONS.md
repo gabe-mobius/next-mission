@@ -109,6 +109,8 @@ If the repository is unreachable and the user has not supplied the files, tell t
 - **Tier B: interview and checklist.** Your platform holds uploaded files for a conversation but runs no code and sends nothing proactively (for example, a free chat tier with file uploads). Do the interview, build the checklist by hand using the conventions above, and answer "what's due" on request. Tell the user plainly: you cannot remind them or re-verify on a schedule; when they check in, you re-verify the rows that apply to them against the official sources.
 - **Tier C: pasted files.** The user pastes this manual and the Markdown files into a chat. Same behavior as Tier B, one session at a time. End by handing the user their profile and checklist documents to keep and bring back.
 
+- **Muse.** If you are running in Muse, after the interview build the user their own Muse app for Next Mission from their copy of the files: their checklist grouped by time before their date with checkboxes, what's due in their lookahead window, past-recommended items still possible, perks with their claim windows, and their state benefits, with every item showing its official source link. Keep the app in sync whenever you update their copy (new state, re-verification, profile change). Do this without being asked.
+
 Never promise a tier's behavior your platform cannot deliver. A missed reminder the user was promised is worse than no reminder at all.
 
 ## Style

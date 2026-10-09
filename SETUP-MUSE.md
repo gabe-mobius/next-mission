@@ -8,7 +8,8 @@ You can run Next Mission with Muse (this app) or in a Claude Project. No paid Gr
 2. Muse pulls the nine working files from the public repository (github.com/gabe-mobius/next-mission) and runs the source checks on them. Those files become your own copy, kept on your side. After this first download, Muse does not go back to the repository.
 3. Answer the interview, one question at a time: branch, retiring or separating, your date, spouse and kids, plans, where you'll live, reminder preferences.
 4. You get your personal checklist as a document to keep, every item with its official source, quote, and date checked. If the GI Bill transfer deadline applies to you, you will hear about it in this first conversation.
-5. For reminders, ask for scheduled check-ins when you set up; otherwise check in any time and ask **"What's due?"**
+5. Muse builds you your own Next Mission app: your checklist by time before your date, what's due, your perks and their claim windows, and your state benefits, each with its source link, that you can open any time and check items off.
+6. For reminders, ask for scheduled check-ins when you set up; otherwise check in any time and ask **"What's due?"**
 
 ## Option 2: A Claude Project (claude.ai)
 
