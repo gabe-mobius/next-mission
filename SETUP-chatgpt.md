@@ -14,7 +14,7 @@ Next Mission runs in ChatGPT from the same files as every other platform. A Proj
 3. Add these files to the project: `MASTER_CHECKLIST.md`, `STATE_BENEFITS.md`, `profile.example.json`. If your plan lets ChatGPT run code, also add `deadlines.py`, `check_checklist.py`, `check_state_benefits.py`, and `compare_versions.py` so ChatGPT can verify sources and compute dates by script instead of by hand.
 4. Start a chat in the project and say: **"Start my Next Mission."**
 5. Answer the interview, one question at a time. If the GI Bill transfer deadline applies to you, you will hear about it in this first conversation.
-6. Save the personal checklist ChatGPT produces. It is your record; bring it back to the project when you return.
+6. ChatGPT hands you your plan right away as a formatted document with checkboxes and source links, without you having to ask. Save it. It is your record; bring it back to the project when you return.
 
 ## Staying current
 

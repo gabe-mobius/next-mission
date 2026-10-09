@@ -14,7 +14,7 @@ Grok Bot is where Next Mission started, and it runs the full behavior: automated
 3. Your bot runs the source checks on the files before using them. If it ever cannot reach the repository, it will tell you and offer to build your checklist straight from the official government pages instead.
 4. Answer the interview. One question at a time: your branch, retiring or separating, your date, spouse and kids, your plans, where you'll live, and how often you want reminders.
 5. If the GI Bill transfer deadline applies to you, the bot will warn you in that first conversation. It cannot be recovered once missed.
-6. You get your personal checklist, sorted by time before your date, every item carrying its official source.
+6. You get your personal checklist, sorted by time before your date, every item carrying its official source. Your bot also hands you a web page of your plan in your branch colors, with checkboxes, that opens in any browser on your computer or phone. It sends you a fresh copy whenever something changes.
 
 ## How it stays current
 
