@@ -15,8 +15,9 @@ VERSION, and profile.json from the folder it lives in. Other paths: --old, --new
 Rows are matched by their ID column (IDs never change once published), so moved or
 renumbered rows are not reported. Main-checklist rows are kept when 'Applies to' is 'both'
 or matches the profile, 'Branch' is 'all' or lists the profile's branch, and GI Bill
-transfer / Survivor Benefit Plan rows only when the profile has a spouse or children (the
-same rules as deadlines.py). A changed row is reported if either its old or its new version
+transfer / Survivor Benefit Plan rows only when the profile has a spouse or children, and
+the GI Bill transfer decision row (4y-gi-bill-transfer) only when gi_bill_transferred is not
+true (the same rules as deadlines.py). A changed row is reported if either its old or its new version
 applies, so a row that stops applying is still mentioned. Perk rows have no branch or
 status tags and are always reported. The Change log section is ignored (it is a record of
 changes, not a rule).
@@ -25,6 +26,7 @@ import argparse, datetime, json, os, re, sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 FAMILY_TOPICS = ("GI Bill transfer (TEB)", "Retirement (SBP)")
+GI_TRANSFER_ID = "4y-gi-bill-transfer"
 MAJOR = ["Rule / deadline / number", "Due", "Window", "Applies to", "Branch", "Who qualifies",
          "Status", "Item", "Topic", "Source URL"]
 MINOR = ["Source quote or value", "Date checked", "#"]
@@ -71,6 +73,7 @@ def load_profile(path):
     except (TypeError, ValueError):
         kids = 0
     p["family"] = bool(p.get("spouse")) or kids > 0
+    p["gi_bill_transferred"] = p.get("gi_bill_transferred") is True
     return p
 
 
@@ -84,6 +87,8 @@ def applies(r, p):
     if r.get("Branch") != "all" and p["branch"] not in [b.strip() for b in r.get("Branch", "").split(",")]:
         return False
     if r.get("Topic") in FAMILY_TOPICS and not p["family"]:
+        return False
+    if r.get("ID") == GI_TRANSFER_ID and p["gi_bill_transferred"]:
         return False
     return True
 

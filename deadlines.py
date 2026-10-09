@@ -12,7 +12,11 @@ The profile is read from profile.json next to this script unless --profile is gi
 Copy profile.example.json to profile.json and fill it in. Rows are kept when:
   * 'Applies to' is `both` or matches retiring_or_separating, and
   * 'Branch' is `all` or lists your branch, and
-  * GI Bill transfer and Survivor Benefit Plan rows only when you have a spouse or children.
+  * GI Bill transfer and Survivor Benefit Plan rows only when you have a spouse or children, and
+  * the GI Bill transfer decision row (4y-gi-bill-transfer) only when gi_bill_transferred is not true.
+That row gets its own wording: before its date (4 years before separation_date) it says by when
+to decide to transfer without serving past your date; after that date it is listed under its own
+heading saying the no-extra-service window has closed (not as a late item).
 'Due' is relative to separation_date (e.g. -365, +120, -180..-90, none). An offset that
 is a whole multiple of 365 is read as calendar years (-1460 from 2027-12-08 is 2023-12-08);
 any other offset is counted in days.
@@ -33,13 +37,28 @@ DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sun
 FAMILY_TOPICS = ("GI Bill transfer (TEB)", "Retirement (SBP)")
 PERKS_HEADING = "free and discounted perks"
 # Extra plain-English notes printed under specific rows, keyed by row ID.
-NOTES = {
-    "4y-gi-bill-transfer": (
-        "Time-sensitive decision, not an automatic to-do: transferring requires agreeing to 4 more "
-        "years of service (an added service obligation), requested in milConnect while on active duty. "
-        "If your date is less than 4 years away, transferring means serving past it. Whether that is "
-        "worth it is your decision; talk it over with your career counselor or personnel office."),
-}
+NOTES = {}
+# GI Bill transfer decision row: hidden when the profile says it was already transferred, and
+# worded by whether its date (4 years before separation) has passed.
+GI_TRANSFER_ID = "4y-gi-bill-transfer"
+GI_CLOSED_HEADING = "GI Bill transfer to family: the window to transfer without extra service has closed"
+GI_CLOSED_NOTE = (
+    "The window to transfer without extra service has closed. Your date is less than 4 years away, "
+    "so transferring now means agreeing to serve past it. If that isn't worth it to you, skip this. "
+    "If it might be, talk to your career counselor before you lock in your date.")
+GI_OPEN_NOTE = (
+    "Decide by {date} to transfer without serving past your planned date. Transferring requires "
+    "agreeing to 4 more years of service.")
+
+
+def note_for(row, sep, today):
+    """Plain-English note for a row, or None."""
+    if row["ID"] == GI_TRANSFER_ID and row["window"] is not None:
+        due = offset_date(sep, row["window"][1])
+        if due < today:
+            return GI_CLOSED_NOTE if today < sep else None
+        return GI_OPEN_NOTE.format(date=due.isoformat())
+    return NOTES.get(row["ID"])
 
 
 def die(msg, code=1):
@@ -72,6 +91,10 @@ def load_profile(path):
         errs.append(f"separation_date must be YYYY-MM-DD (got '{p.get('separation_date')}')")
     if not isinstance(p.get("spouse", False), bool):
         errs.append("spouse must be true or false")
+    if p.get("gi_bill_transferred") is None:
+        p["gi_bill_transferred"] = False
+    if not isinstance(p["gi_bill_transferred"], bool):
+        errs.append("gi_bill_transferred must be true or false")
     try:
         p["children"] = int(p.get("children", 0))
         if p["children"] < 0:
@@ -231,6 +254,8 @@ def keep(row, p):
         return False
     if row["Topic"] in FAMILY_TOPICS and not (p.get("spouse") or p.get("children", 0) > 0):
         return False
+    if row["ID"] == GI_TRANSFER_ID and p.get("gi_bill_transferred"):
+        return False
     return True
 
 
@@ -295,8 +320,9 @@ def show(row, sep, today, extra=""):
     print(f"- {when}{extra}  [{row['ID']}] {row['Topic']}{flag}")
     print(textwrap.fill(first_sentence(row["Item"]), width=100, initial_indent="    ", subsequent_indent="    "))
     print(textwrap.fill("Rule: " + row["Rule / deadline / number"], width=100, initial_indent="    ", subsequent_indent="      "))
-    if row["ID"] in NOTES:
-        print(textwrap.fill("Note: " + NOTES[row["ID"]], width=100, initial_indent="    ", subsequent_indent="      "))
+    note = note_for(row, sep, today)
+    if note:
+        print(textwrap.fill("Note: " + note, width=100, initial_indent="    ", subsequent_indent="      "))
     for u in urls(row) or ["(no official source confirmed)"]:
         print(f"    Source: {u}")
 
@@ -383,16 +409,19 @@ def main():
                     print(f"- no fixed date  [{r['ID']}] {r['Topic']}{flag}")
                     print(textwrap.fill(first_sentence(r["Item"]), width=100, initial_indent="    ", subsequent_indent="    "))
                     print(textwrap.fill("Rule: " + r["Rule / deadline / number"], width=100, initial_indent="    ", subsequent_indent="      "))
-                    if r["ID"] in NOTES:
-                        print(textwrap.fill("Note: " + NOTES[r["ID"]], width=100, initial_indent="    ", subsequent_indent="      "))
+                    note = note_for(r, sep, today)
+                    if note:
+                        print(textwrap.fill("Note: " + note, width=100, initial_indent="    ", subsequent_indent="      "))
                     for u in urls(r) or ["(no official source confirmed)"]:
                         print(f"    Source: {u}")
+                elif r["ID"] == GI_TRANSFER_ID and today < sep and fmt_window(r, sep)[2] < today:
+                    show(r, sep, today, "  (" + GI_CLOSED_HEADING + ")")
                 else:
                     show(r, sep, today)
             print()
         return
 
-    due, late, closed, undated = [], [], 0, 0
+    due, late, gi_closed, closed, undated = [], [], [], 0, 0
     for r in rows:
         if r["window"] is None:
             undated += 1
@@ -402,7 +431,9 @@ def main():
             due.append((da, r))
         elif db < today:
             # Pre-separation items are still actionable until the separation date.
-            if r["window"][1] <= 0 and today < sep:
+            if r["ID"] == GI_TRANSFER_ID and today < sep:
+                gi_closed.append(r)
+            elif r["window"][1] <= 0 and today < sep:
                 late.append((db, r))
             else:
                 closed += 1
@@ -426,6 +457,11 @@ def main():
     for db, r in sorted(late, key=lambda x: x[0]):
         show(r, sep, today, f" (passed {(today - db).days} days ago)")
     print()
+    if gi_closed:
+        print(GI_CLOSED_HEADING + ":")
+        for r in gi_closed:
+            show(r, sep, today)
+        print()
     print(f"{undated} rows have no fixed date and {closed} rows with dates have already closed. "
           f"Run with --plan to see your full list.")
     open_dated, opening, _, _ = classify_perks(load_perks(a.checklist), sep, today, end)
