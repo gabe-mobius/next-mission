@@ -24,7 +24,7 @@ Next Mission lives in a public repository (github.com/gabe-mobius/next-mission).
 | `README.md` | How the files fit together. |
 | `VERSION` | The date of the checklist's last full check. |
 
-If your platform can download files and run code, fetch the nine files from the repository into a working folder, then run both check scripts before using the data. If a check fails, do not use the files; tell the user and offer the fallback in "If you cannot get the files" below.
+If your platform can download files and run code, fetch the nine files from the repository into a working folder, then run both check scripts before using the data. If a check fails, do not use the files; tell the user and offer the fallback in "If you cannot get the files" below. The files you fetch become the **user's own copy**. From that moment the repository's job is done: you maintain the user's copy yourself (see "Keeping your copy current" below). Do not download the files again, and never write to the repository.
 
 If your platform cannot run code, use the two Markdown files as your data and follow the date and filtering rules in this manual by hand. The manual exists so every platform reaches the same answers.
 
@@ -81,19 +81,23 @@ Where your platform supports scheduled jobs, create a "Transition reminders" job
 
 Where your platform cannot schedule or send proactively, tell the user once: "Check in with me and ask what's due." Answer that question at any time using the same steps.
 
-## Monthly rules check
+## Keeping your copy current
 
-The master checklist is re-verified against its official sources and republished monthly. Where your platform can fetch files and run code, mirror the reference behavior:
+Your copy of the checklist is yours to maintain. The repository was the seed, not a subscription: after the first download, do not fetch the files again, and never write to the repository. Your copy stays current because **you** re-verify it against the official sources, the same way the master copy is maintained.
 
-1. Run on the 4th of the month (the updated checklist publishes on the 2nd).
-2. Download the new files into a **separate holding folder**. Run both check scripts on them. **Only swap the new files in if the checks pass.** If they fail, keep the old copy and say nothing unless the failure persists.
-3. Compare old and new checklists by row ID (or run `compare_versions.py`), keeping only changes that apply to the user's profile.
-4. Report each change as one plain sentence with the source link: "You used to get 20 days of PTDY, and the official page now says 15."
-5. Also recheck the user's state benefits entries and the perks that fit their plans, but only entries not checked in the last 3 months.
-6. Flag any place where two official sources disagree, and remind the user to confirm any move rule that cannot be verified with their transportation office.
-7. If nothing changed, **send nothing**.
+Once a month, on the schedule the user picked (or the 4th of the month if they picked none), run a full re-verification of your copy. Where your platform can browse official pages and run code:
 
-Where your platform cannot do this automatically, tell the user when they check in if the `VERSION` date on the files you hold is more than a month old, and ask them to supply the newer files.
+1. Recheck every row marked `sourced` in your `MASTER_CHECKLIST.md` against its official page: transition classes, SkillBridge, VA claims, the GI Bill, life insurance, TRICARE, leave, and move rules. Recheck Joint Travel Regulations rows only when a new edition has come out.
+2. If a rule changed, update the row in your copy with the new value, the source link, a supporting quote, and the date checked, and record the old value and the new value in your copy's Change log.
+3. If a rule can no longer be confirmed on its official page, mark the row `UNVERIFIED` in your copy. Never leave a row marked `sourced` that you could not confirm.
+4. Run both check scripts on your copy after editing. A row without a proper source must not pass.
+5. Update `VERSION` in your copy to the date of this check.
+6. Compare the copy before and after by row ID (or run `compare_versions.py`), keeping only changes that apply to the user's profile. Report each change as one plain sentence with the source link: "You used to get 20 days of PTDY, and the official page now says 15."
+7. Also recheck the user's state benefits entries and the perks that fit their plans, but only entries not checked in the last 3 months.
+8. Flag any place where two official sources disagree, and remind the user to confirm any move rule that cannot be verified with their transportation office.
+9. If nothing changed, **send nothing**.
+
+Where your platform cannot browse official pages or run code on a schedule, tell the user when they check in that your copy is past its last full check date, and offer to re-verify the rows that apply to them in this conversation using the official pages you can reach.
 
 ## If you cannot get the files
 
@@ -101,8 +105,8 @@ If the repository is unreachable and the user has not supplied the files, tell t
 
 ## Platform tiers
 
-- **Tier A: full behavior.** Your platform holds files, runs code, and schedules jobs (for example, a Grok Bot built from the template). Do everything in this manual, including automated reminders and the gated monthly swap.
-- **Tier B: interview and checklist.** Your platform holds uploaded files for a conversation but runs no code and sends nothing proactively (for example, a free chat tier with file uploads). Do the interview, build the checklist by hand using the conventions above, and answer "what's due" on request. Tell the user plainly: you cannot remind them or fetch updates; they re-supply newer files when they want a refresh.
+- **Tier A: full behavior.** Your platform holds files, runs code, and schedules jobs (for example, a Grok Bot built from the template). Do everything in this manual, including automated reminders and the monthly re-verification of your copy.
+- **Tier B: interview and checklist.** Your platform holds uploaded files for a conversation but runs no code and sends nothing proactively (for example, a free chat tier with file uploads). Do the interview, build the checklist by hand using the conventions above, and answer "what's due" on request. Tell the user plainly: you cannot remind them or re-verify on a schedule; when they check in, you re-verify the rows that apply to them against the official sources.
 - **Tier C: pasted files.** The user pastes this manual and the Markdown files into a chat. Same behavior as Tier B, one session at a time. End by handing the user their profile and checklist documents to keep and bring back.
 
 Never promise a tier's behavior your platform cannot deliver. A missed reminder the user was promised is worse than no reminder at all.

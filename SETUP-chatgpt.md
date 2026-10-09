@@ -18,12 +18,12 @@ Next Mission runs in ChatGPT from the same files as every other platform. A Proj
 
 ## Staying current
 
-- The master checklist is re-verified and republished monthly. Download the newer Markdown files from the repository, replace the project files, and ask **"What changed for me?"**
+- The project files are your copy. To refresh it, ask **"What changed for me?"**: ChatGPT re-verifies the rules that apply to you against their official government sources and updates your copy where a rule changed, showing the old and new values. You do not need to download replacement files from the repository.
 - Where ChatGPT Tasks are available on your plan, you can ask for a recurring task that runs your reminder check on the cadence you chose. If Tasks are not available, check in and ask **"What's due?"**: same answer, you just start it.
 
 ## Honest limits
 
-- ChatGPT will not fetch repository updates by itself on this setup; updating the project files is a two-minute manual step when you want it.
+- Your copy does not re-verify itself in the background on this setup; the refresh happens when you ask, or on a Task schedule if your plan has Tasks.
 - Never paste your completed profile (it holds personal details) into any public or shared GPT.
 
 ## Good to know
